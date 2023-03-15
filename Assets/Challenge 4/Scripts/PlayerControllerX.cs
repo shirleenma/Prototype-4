@@ -5,12 +5,17 @@ using UnityEngine;
 public class PlayerControllerX : MonoBehaviour
 {
     private Rigidbody playerRb;
-    private float speed = 500;
+    private float speed = 2;
+    private float turboSpeedMuliplier = 7.0f;
     private GameObject focalPoint;
+    public ParticleSystem smoke; 
 
+    public bool turboAvailable;
     public bool hasPowerup;
     public GameObject powerupIndicator;
     public int powerUpDuration = 5;
+    public float turboDuration = 2.0f;
+    public int turboWait = 5;
 
     private float normalStrength = 10; // how hard to hit enemy without powerup
     private float powerupStrength = 25; // how hard to hit enemy with powerup
@@ -19,20 +24,41 @@ public class PlayerControllerX : MonoBehaviour
     {
         playerRb = GetComponent<Rigidbody>();
         focalPoint = GameObject.Find("Focal Point");
+        turboAvailable = true; 
     }
 
     void Update()
     {
-        // Add force to player in direction of the focal point (and camera)
-        float verticalInput = Input.GetAxis("Vertical");
-        playerRb.AddForce(focalPoint.transform.forward * verticalInput * speed * Time.deltaTime); 
 
-        // Set powerup indicator position to beneath player
+        Moveforward();
         powerupIndicator.transform.position = transform.position + new Vector3(0, -0.6f, 0);
 
     }
 
     // If Player collides with powerup, activate powerup
+    private void Moveforward()
+    {
+        float verticalInput = Input.GetAxis("Vertical");
+        playerRb.AddForce(focalPoint.transform.forward * verticalInput * speed * Time.deltaTime);
+
+        if (Input.GetKeyDown(KeyCode.Space) && turboAvailable)
+        {
+            playerRb.AddForce(focalPoint.transform.forward * speed * verticalInput * turboSpeedMuliplier, ForceMode.Impulse);
+            TurboCooldown();
+            smoke.Play();
+        }
+        else
+        {
+            playerRb.AddForce(focalPoint.transform.forward * speed * verticalInput);
+        }
+    }
+
+    IEnumerator TurboCooldown()
+    {
+        yield return new WaitForSeconds(turboWait);
+        turboAvailable = true;
+    }
+
     private void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.CompareTag("Powerup"))
@@ -40,6 +66,7 @@ public class PlayerControllerX : MonoBehaviour
             Destroy(other.gameObject);
             hasPowerup = true;
             powerupIndicator.SetActive(true);
+            StartCoroutine(PowerupCooldown());
         }
     }
 
